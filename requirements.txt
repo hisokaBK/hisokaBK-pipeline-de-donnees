@@ -1,0 +1,6 @@
+pandas
+numpy
+requests
+psycopg[binary]
+python-dotenv
+streamlit
