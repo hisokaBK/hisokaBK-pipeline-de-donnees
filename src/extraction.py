@@ -12,7 +12,6 @@ for _, ville in get_csv_info.iterrows():
  try :
    latitude  = ville['lat'] 
    longitude = ville['lng']
-   nom_ville = ville['city']
    
    params = {
        "latitude": latitude,
@@ -29,10 +28,7 @@ for _, ville in get_csv_info.iterrows():
    response.raise_for_status()
    data = response.json()
 
-   weather_data.append({
-         "city": nom_ville,
-         "weather": data
-     })
+   weather_data.append(data)
    
  
  except requests.exceptions.Timeout :
