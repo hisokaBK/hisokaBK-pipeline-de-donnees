@@ -69,5 +69,15 @@ services:
     depends_on:
       - postgres
 
+  streamlit:
+      build:
+        context: .
+        dockerfile: Dockerfile.streamlit
+      container_name: weather-streamlit
+      ports:
+        - "8501:8501"
+      depends_on:
+        - postgres
+
 volumes:
   postgres_data:
