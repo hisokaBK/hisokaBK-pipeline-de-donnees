@@ -79,4 +79,8 @@ print("Nombre de villes :", weather_df["city"].nunique())
 print("Colonnes :", weather_df.columns.tolist())
 
 
-
+#Exporter data csv
+weather_df.to_csv(
+    "data/silver/weather_clean.csv",
+    index=False
+)
