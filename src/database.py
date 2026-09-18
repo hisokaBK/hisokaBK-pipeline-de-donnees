@@ -1,151 +1,90 @@
-import pandas as pd
+import os
 
-weather_df = pd.read_csv(
-    "data/silver/weather_clean.csv"
-)
-
-def categoriser_temperature(temperature):
-
-    if temperature < 5:
-        return "Très froid"
-
-    elif temperature < 15:
-        return "Froid"
-
-    elif temperature < 25:
-        return "Normal"
-
-    elif temperature < 35:
-        return "Chaud"
-
-    else:
-        return "Très chaud"
+import psycopg
+from dotenv import load_dotenv
 
 
-def categoriser_precipitation(precipitation):
-
-    if precipitation == 0:
-        return "Aucune"
-
-    elif precipitation < 5:
-        return "Faible"
-
-    elif precipitation <= 20:
-        return "Modérée"
-
-    else:
-        return "Forte"
+load_dotenv()
 
 
-def categoriser_vent(wind_speed):
-
-    if wind_speed < 20:
-        return "Faible"
-
-    elif wind_speed < 40:
-        return "Modéré"
-
-    elif wind_speed <= 60:
-        return "Fort"
-
-    else:
-        return "Très fort"
-
-
-weather_df["temperature_category"] = (
-    weather_df["temperature_max"]
-    .apply(categoriser_temperature)
-)
-
-weather_df["precipitation_category"] = (
-    weather_df["precipitation"]
-    .apply(categoriser_precipitation)
-)
-
-weather_df["wind_category"] = (
-    weather_df["wind_speed_max"]
-    .apply(categoriser_vent)
+conn = psycopg.connect(
+    host="localhost",
+    port=os.getenv("POSTGRES_PORT"),
+    dbname=os.getenv("POSTGRES_DB"),
+    user=os.getenv("POSTGRES_USER"),
+    password=os.getenv("POSTGRES_PASSWORD")
 )
 
 
-def calculer_score_precipitation(precipitation):
+print("Connexion à PostgreSQL réussie !")
 
-    if precipitation == 0:
-        return 0
+with conn.cursor() as cursor:
 
-    elif precipitation < 5:
-        return 20
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS cities (
+            city_id SERIAL PRIMARY KEY,
+            city VARCHAR(100) NOT NULL,
+            latitude DECIMAL(9, 6) NOT NULL,
+            longitude DECIMAL(9, 6) NOT NULL
+        );
+    """)
 
-    elif precipitation <= 20:
-        return 50
 
-    elif precipitation <= 40:
-        return 80
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS forecasts (
+            forecast_id SERIAL PRIMARY KEY,
+            city_id INTEGER NOT NULL,
+            date DATE NOT NULL,
+            temperature_max DECIMAL,
+            temperature_min DECIMAL,
+            precipitation DECIMAL,
+            precipitation_probability_max DECIMAL,
+            wind_speed_max DECIMAL,
+            wind_gusts_max DECIMAL,
+            weather_code INTEGER,
 
-    else:
-        return 100
+            CONSTRAINT fk_forecasts_city
+                FOREIGN KEY (city_id)
+                REFERENCES cities(city_id),
 
-def calculer_score_vent(wind_speed):
+            CONSTRAINT unique_city_forecast
+                UNIQUE (city_id, date)
+        );
+    """)
 
-    if wind_speed < 20:
-        return 0
 
-    elif wind_speed < 40:
-        return 30
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS risk_scores (
+            risk_id SERIAL PRIMARY KEY,
+            forecast_id INTEGER NOT NULL,
 
-    elif wind_speed <= 60:
-        return 70
+            temperature_category VARCHAR(50),
+            precipitation_category VARCHAR(50),
+            wind_category VARCHAR(50),
 
-    else:
-        return 100
+            precipitation_score DECIMAL,
+            wind_speed_score DECIMAL,
+            wind_gusts_score DECIMAL,
+            wind_score DECIMAL,
+            temperature_score DECIMAL,
 
-def calculer_score_temperature(temperature):
+            risk_score DECIMAL
+                CHECK (risk_score >= 0 AND risk_score <= 100),
 
-    if 15 <= temperature < 25:
-        return 0
+            CONSTRAINT fk_risk_forecast
+                FOREIGN KEY (forecast_id)
+                REFERENCES forecasts(forecast_id),
 
-    elif 5 <= temperature < 15:
-        return 30
+            CONSTRAINT unique_forecast_risk
+                UNIQUE (forecast_id)
+        );
+    """)
 
-    elif 25 <= temperature < 35:
-        return 30
 
-    elif temperature < 5:
-        return 70
+conn.commit()
 
-    else:
-        return 100
-
-weather_df["precipitation_score"] = (
-    weather_df["precipitation"]
-    .apply(calculer_score_precipitation)
-)
-
-weather_df["wind_score"] = (
-    weather_df["wind_speed_max"]
-    .apply(calculer_score_vent)
-)
-
-weather_df["temperature_score"] = (
-    weather_df["temperature_max"]
-    .apply(calculer_score_temperature)
-)
-
-# ------> 40% precipitation  ---> 30% Vent  ---> 30% Température
-
-weather_df["risk_score"] = (
-    weather_df["precipitation_score"] * 0.40
-    + weather_df["wind_score"] * 0.30
-    + weather_df["temperature_score"] * 0.30
-)
+print("Les tables ont été créées avec succès !")
 
 
 
-weather_df.to_csv(
-    "data/gold/weather_risk.csv",
-    index=False
-)
-
-print(
-    "\nLes données Gold ont été sauvegardées "
-)
+conn.close()
