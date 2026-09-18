@@ -16,8 +16,8 @@ conn = psycopg.connect(
     password=os.getenv("POSTGRES_PASSWORD")
 )
 
-
 print("Connexion à PostgreSQL réussie !")
+
 
 with conn.cursor() as cursor:
 
@@ -26,10 +26,12 @@ with conn.cursor() as cursor:
             city_id SERIAL PRIMARY KEY,
             city VARCHAR(100) NOT NULL,
             latitude DECIMAL(9, 6) NOT NULL,
-            longitude DECIMAL(9, 6) NOT NULL
+            longitude DECIMAL(9, 6) NOT NULL,
+
+            CONSTRAINT unique_city
+                UNIQUE (city)
         );
     """)
-
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS forecasts (
@@ -52,7 +54,6 @@ with conn.cursor() as cursor:
                 UNIQUE (city_id, date)
         );
     """)
-
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS risk_scores (
@@ -84,7 +85,7 @@ with conn.cursor() as cursor:
 
 conn.commit()
 
-print("Les tables ont été créées avec succès !")
+print("Les tables sont prêtes !")
 
 
 gold_df = pd.read_csv(
@@ -115,6 +116,9 @@ with conn.cursor() as cursor:
                 longitude
             )
             VALUES (%s, %s, %s)
+
+            ON CONFLICT (city)
+            DO NOTHING
             """,
             (
                 ville["city"],
@@ -124,8 +128,11 @@ with conn.cursor() as cursor:
         )
 
     print(
-        f"Villes insérées : {len(villes)}"
+        f"Villes traitées : {len(villes)}"
     )
+
+
+conn.commit()
 
 
 
@@ -142,7 +149,14 @@ with conn.cursor() as cursor:
             (ligne["city"],)
         )
 
-        city_id = cursor.fetchone()[0]
+        resultat = cursor.fetchone()
+
+        if resultat is None:
+            raise RuntimeError(
+                f"Ville introuvable : {ligne['city']}"
+            )
+
+        city_id = resultat[0]
 
         cursor.execute(
             """
@@ -161,6 +175,18 @@ with conn.cursor() as cursor:
                 %s, %s, %s, %s, %s,
                 %s, %s, %s, %s
             )
+
+            ON CONFLICT (city_id, date)
+            DO UPDATE SET
+                temperature_max = EXCLUDED.temperature_max,
+                temperature_min = EXCLUDED.temperature_min,
+                precipitation = EXCLUDED.precipitation,
+                precipitation_probability_max =
+                    EXCLUDED.precipitation_probability_max,
+                wind_speed_max = EXCLUDED.wind_speed_max,
+                wind_gusts_max = EXCLUDED.wind_gusts_max,
+                weather_code = EXCLUDED.weather_code
+
             RETURNING forecast_id
             """,
             (
@@ -195,6 +221,23 @@ with conn.cursor() as cursor:
                 %s, %s, %s, %s,
                 %s, %s, %s, %s
             )
+
+            ON CONFLICT (forecast_id)
+            DO UPDATE SET
+                temperature_category =
+                    EXCLUDED.temperature_category,
+                precipitation_category =
+                    EXCLUDED.precipitation_category,
+                wind_category =
+                    EXCLUDED.wind_category,
+                precipitation_score =
+                    EXCLUDED.precipitation_score,
+                wind_score =
+                    EXCLUDED.wind_score,
+                temperature_score =
+                    EXCLUDED.temperature_score,
+                risk_score =
+                    EXCLUDED.risk_score
             """,
             (
                 forecast_id,
@@ -246,3 +289,5 @@ print(
 
 
 conn.close()
+
+print("Connexion PostgreSQL fermée.")
