@@ -141,3 +141,130 @@ ville_selectionnee = st.sidebar.selectbox(
     ["Toutes les villes"] + villes
 )
 
+
+# ------------------------------------------------------------
+# 2. FILTRE DATE
+# ------------------------------------------------------------
+
+dates_disponibles = sorted(
+    df["date"].dt.date.unique()
+)
+
+date_selectionnee = st.sidebar.selectbox(
+    "📅 Date",
+    ["Toutes les dates"] + dates_disponibles
+)
+
+
+# ------------------------------------------------------------
+# 3. FILTRE PÉRIODE
+# ------------------------------------------------------------
+
+periode_selectionnee = st.sidebar.selectbox(
+    "🗓️ Période",
+    [
+        "Toutes les périodes",
+        "3 prochains jours",
+        "5 prochains jours",
+        "7 prochains jours"
+    ]
+)
+
+
+# ------------------------------------------------------------
+# 4. FILTRE NIVEAU DE RISQUE
+# ------------------------------------------------------------
+
+niveau_risque = st.sidebar.selectbox(
+    "⚠️ Niveau de risque",
+    [
+        "Tous les niveaux",
+        "Faible",
+        "Modéré",
+        "Élevé"
+    ]
+)
+
+
+# ============================================================
+# APPLICATION DES FILTRES
+# ============================================================
+
+df_filtre = df.copy()
+
+
+# ------------------------------------------------------------
+# Filtre ville
+# ------------------------------------------------------------
+
+if ville_selectionnee != "Toutes les villes":
+
+    df_filtre = df_filtre[
+        df_filtre["city"] == ville_selectionnee
+    ]
+
+
+# ------------------------------------------------------------
+# Filtre date
+# ------------------------------------------------------------
+
+if date_selectionnee != "Toutes les dates":
+
+    df_filtre = df_filtre[
+        df_filtre["date"].dt.date == date_selectionnee
+    ]
+
+
+# ------------------------------------------------------------
+# Filtre période
+# ------------------------------------------------------------
+
+if periode_selectionnee != "Toutes les périodes":
+
+    nombre_jours = {
+        "3 prochains jours": 3,
+        "5 prochains jours": 5,
+        "7 prochains jours": 7
+    }
+
+    jours = nombre_jours[periode_selectionnee]
+
+    date_depart = df_filtre["date"].min()
+
+    date_fin = date_depart + pd.Timedelta(
+        days=jours - 1
+    )
+
+    df_filtre = df_filtre[
+        (df_filtre["date"] >= date_depart)
+        &
+        (df_filtre["date"] <= date_fin)
+    ]
+
+
+# ------------------------------------------------------------
+# Filtre niveau de risque
+# ------------------------------------------------------------
+
+if niveau_risque == "Faible":
+
+    df_filtre = df_filtre[
+        df_filtre["risk_score"] < 30
+    ]
+
+
+elif niveau_risque == "Modéré":
+
+    df_filtre = df_filtre[
+        (df_filtre["risk_score"] >= 30)
+        &
+        (df_filtre["risk_score"] < 50)
+    ]
+
+
+elif niveau_risque == "Élevé":
+
+    df_filtre = df_filtre[
+        df_filtre["risk_score"] >= 50
+    ]
+
