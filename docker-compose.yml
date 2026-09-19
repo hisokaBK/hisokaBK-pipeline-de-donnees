@@ -38,6 +38,13 @@ services:
 
     environment:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://hisoka:hisoka%40123@postgres:5432/airflow_db
+
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
     ports:
       - "8080:8080"
 
@@ -45,6 +52,8 @@ services:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
+      - ./src:/opt/airflow/src
+      - ./data:/opt/airflow/data
 
     depends_on:
       - postgres
@@ -55,16 +64,23 @@ services:
       dockerfile: Dockerfile.airflow
 
     container_name: weather-airflow-scheduler
-
     command: scheduler
 
     environment:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://hisoka:hisoka%40123@postgres:5432/airflow_db
 
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
+      - ./src:/opt/airflow/src
+      - ./data:/opt/airflow/data
 
     depends_on:
       - postgres
@@ -73,19 +89,19 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.streamlit
-  
+
     container_name: weather-streamlit
-  
+
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-  
+
     ports:
       - "8501:8501"
-  
+
     depends_on:
       - postgres
 
