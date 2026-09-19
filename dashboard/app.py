@@ -46,8 +46,6 @@ try:
         password=os.getenv("POSTGRES_PASSWORD")
     )
 
-    st.success("Connexion à PostgreSQL réussie !")
-
 
 except psycopg.Error as e:
 
@@ -94,10 +92,6 @@ try:
     df = pd.read_sql_query(
         query,
         conn
-    )
-
-    st.success(
-        f"Données récupérées : {len(df)} lignes"
     )
 
 
@@ -268,3 +262,217 @@ elif niveau_risque == "Élevé":
         df_filtre["risk_score"] >= 50
     ]
 
+
+# ============================================================
+# VÉRIFICATION
+# ============================================================
+
+if df_filtre.empty:
+
+    st.warning(
+        "Aucune donnée ne correspond aux filtres sélectionnés."
+    )
+
+    st.stop()
+
+
+# ============================================================
+# KPI
+# ============================================================
+
+st.subheader("Indicateurs clés")
+
+
+nombre_villes = df_filtre["city"].nunique()
+
+
+temperature_max = df_filtre[
+    "temperature_max"
+].max()
+
+
+precipitation_max = df_filtre[
+    "precipitation"
+].max()
+
+
+nombre_periodes_risque = (
+    df_filtre["risk_score"] >= 50
+).sum()
+
+
+ligne_risque_max = df_filtre.loc[
+    df_filtre["risk_score"].idxmax()
+]
+
+
+ville_risque_max = ligne_risque_max["city"]
+
+
+date_risque_max = ligne_risque_max["date"]
+
+
+risk_max = ligne_risque_max["risk_score"]
+
+
+# ============================================================
+# AFFICHAGE DES KPI
+# ============================================================
+
+col1, col2, col3, col4, col5 = st.columns(5)
+
+
+with col1:
+
+    st.metric(
+        "🏙️ Nombre de villes",
+        nombre_villes
+    )
+
+
+with col2:
+
+    st.metric(
+        "🌡️ Température maximale",
+        f"{temperature_max:.1f} °C"
+    )
+
+
+with col3:
+
+    st.metric(
+        "🌧️ Précipitations maximales",
+        f"{precipitation_max:.1f} mm"
+    )
+
+
+with col4:
+
+    st.metric(
+        "⚠️ Périodes à risque",
+        nombre_periodes_risque
+    )
+
+
+with col5:
+
+    st.metric(
+        "📍 Risque le plus élevé",
+        ville_risque_max,
+        f"{risk_max:.1f} / 100"
+    )
+
+
+# ============================================================
+# ALERTE PRINCIPALE
+# ============================================================
+
+st.subheader("🚨 Alerte principale")
+
+
+col1, col2, col3 = st.columns(3)
+
+
+with col1:
+
+    st.metric(
+        "📍 Ville",
+        ville_risque_max
+    )
+
+
+with col2:
+
+    st.metric(
+        "📅 Date",
+        date_risque_max.strftime("%d/%m/%Y")
+    )
+
+
+with col3:
+
+    st.metric(
+        "⚠️ Risque",
+        f"{risk_max:.1f} / 100"
+    )
+
+
+# ============================================================
+# FACTEURS DU RISQUE
+# ============================================================
+
+st.write("### 🔎 Facteurs du risque")
+
+
+col1, col2, col3 = st.columns(3)
+
+
+with col1:
+
+    st.metric(
+        "🌧️ Risque précipitations",
+        f"{ligne_risque_max['precipitation_score']:.1f}"
+    )
+
+
+with col2:
+
+    st.metric(
+        "💨 Risque vent",
+        f"{ligne_risque_max['wind_score']:.1f}"
+    )
+
+
+with col3:
+
+    st.metric(
+        "🌡️ Risque température",
+        f"{ligne_risque_max['temperature_score']:.1f}"
+    )
+
+
+# ============================================================
+# INFORMATIONS GÉNÉRALES
+# ============================================================
+
+st.subheader("Données disponibles")
+
+
+col1, col2, col3 = st.columns(3)
+
+
+with col1:
+
+    st.metric(
+        "Nombre de lignes",
+        len(df_filtre)
+    )
+
+
+with col2:
+
+    st.metric(
+        "Nombre de villes",
+        df_filtre["city"].nunique()
+    )
+
+
+with col3:
+
+    st.metric(
+        "Nombre de dates",
+        df_filtre["date"].nunique()
+    )
+
+
+# ============================================================
+# TABLEAU
+# ============================================================
+
+st.subheader("Prévisions météo et risques")
+
+
+st.dataframe(
+    df_filtre,
+    use_container_width=True
+)
